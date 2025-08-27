@@ -10,7 +10,16 @@
   let logoDataUrl: string | null;
   let logoScale: number;
   let logoBorderRadius: number;
+  let logoMargin: number = 0;
   let pngPixels: number;
+  let colorType: 'solid' | 'gradient' = 'solid';
+  let solidColor: string = '#000000';
+  let gradientType: 'linear' | 'radial' = 'linear';
+  let gradientAngle: number = 0;
+  let gradientColors: { color: string; position: number }[] = [
+    { color: '#000000', position: 0 },
+    { color: '#ffffff', position: 100 },
+  ];
 </script>
 
 <QrCodeGenerator
@@ -20,7 +29,13 @@
   bind:logoDataUrl
   bind:logoScale
   bind:logoBorderRadius
+  bind:logoMargin
   bind:pngPixels
+  bind:colorType
+  bind:solidColor
+  bind:gradientType
+  bind:gradientAngle
+  bind:gradientColors
   let:exportSvg
   let:exportPng
 >
@@ -36,12 +51,24 @@
           bind:logoDataUrl
           bind:logoScale
           bind:logoBorderRadius
+          bind:logoMargin
+          bind:colorType
+          bind:solidColor
+          bind:gradientType
+          bind:gradientAngle
+          bind:gradientColors
           onTextChange={(value) => (text = value)}
           onErrorCorrectionChange={(value) => (errorCorrectionLevel = value)}
           onLogoUpload={(value) => (logoDataUrl = value)}
           onRemoveLogo={() => (logoDataUrl = null)}
           onLogoScaleChange={(value) => (logoScale = value)}
           onLogoBorderRadiusChange={(value) => (logoBorderRadius = value)}
+          onLogoMarginChange={(value) => (logoMargin = value)}
+          onColorTypeChange={(value) => (colorType = value)}
+          onSolidColorChange={(value) => (solidColor = value)}
+          onGradientTypeChange={(value) => (gradientType = value)}
+          onGradientAngleChange={(value) => (gradientAngle = value)}
+          onGradientColorsChange={(value) => (gradientColors = value)}
         />
 
         <QrCodeExportButtons
