@@ -269,6 +269,24 @@
     return new XMLSerializer().serializeToString(svgElement);
   }
 
+  // Function to calculate complementary color
+  function calculateComplementaryColor(hex: string): string {
+    // Remove '#' if present
+    const cleanHex = hex.startsWith('#') ? hex.slice(1) : hex;
+
+    // Parse r, g, b values
+    const r = parseInt(cleanHex.substring(0, 2), 16);
+    const g = parseInt(cleanHex.substring(2, 4), 16);
+    const b = parseInt(cleanHex.substring(4, 6), 16);
+
+    // Find the complementary color
+    const rComp = (255 - r).toString(16).padStart(2, '0');
+    const gComp = (255 - g).toString(16).padStart(2, '0');
+    const bComp = (255 - b).toString(16).padStart(2, '0');
+
+    return `#${rComp}${gComp}${bComp}`;
+  }
+
   // Function to export as PNG
   export async function exportPng() {
     try {
@@ -322,18 +340,32 @@
   }
 
   // Generate QR code on initial load and when text, errorCorrectionLevel, logoDataUrl, logoScale, or logoBorderRadius changes
-  $: text,
-    errorCorrectionLevel,
-    logoDataUrl,
-    logoScale,
-    logoBorderRadius,
-    logoMargin,
-    colorType,
-    solidColor,
-    gradientType,
-    gradientAngle,
-    gradientColors,
-    generateQrCode();
+  let previousColorType: 'solid' | 'gradient' = colorType;
+
+  $: {
+    if (colorType === 'gradient' && previousColorType === 'solid') {
+      const complementaryColor = calculateComplementaryColor(solidColor);
+      gradientColors = [
+        { color: complementaryColor, position: 0 },
+        { color: solidColor, position: 100 },
+      ];
+      gradientAngle = 115;
+    }
+    previousColorType = colorType;
+
+    text,
+      errorCorrectionLevel,
+      logoDataUrl,
+      logoScale,
+      logoBorderRadius,
+      logoMargin,
+      colorType,
+      solidColor,
+      gradientType,
+      gradientAngle,
+      gradientColors,
+      generateQrCode();
+  }
 
   onMount(() => {
     generateQrCode();
