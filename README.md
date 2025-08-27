@@ -6,6 +6,7 @@ It allows users to generate QR codes with various customization options, includi
 
 ## Features
 
+- **Live Demo**: Check out the live application at [https://qr.tohka.us](https://qr.tohka.us).
 - **Text/URL Encoding**: Encode any text or URL into a QR code.
 - **Error Correction Levels**: Choose from different error correction levels (L, M, Q, H) to control the QR code's resilience to damage.
 - **Customizable Colors**:
