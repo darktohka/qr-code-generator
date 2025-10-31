@@ -52,14 +52,12 @@
     <label for="qr-text" class="block text-gray-800 text-sm font-semibold mb-2">
       Text to encode:
     </label>
-    <input
-      type="text"
+    <textarea
       id="qr-text"
-      class="shadow-sm border border-gray-300 rounded-lg w-full py-2.5 px-4 text-gray-800 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-      value={text}
-      on:input={(e) => onTextChange((e.target as HTMLInputElement).value)}
-      placeholder="Enter text or URL"
-    />
+      class="shadow-sm border border-gray-300 rounded-lg w-full py-2.5 px-4 text-gray-800 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 h-32"
+      on:input={(e) => onTextChange((e.target as HTMLTextAreaElement).value)}
+      placeholder="Enter text or URL">{text}</textarea
+    >
   </div>
 
   <div class="mb-7">
