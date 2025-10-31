@@ -38,7 +38,10 @@
   let password = '';
   let selectedAlgorithm = 'bcrypt';
   let hashedPassword = '';
+  let hashedPasswordToVerify = '';
   let error = '';
+  let verifyPassword = '';
+  let verificationResult: boolean | null = null;
 
   // Bcrypt configurations
   let bcryptRounds = 10;
@@ -338,6 +341,154 @@
     }
   }
 
+  // Helper to extract salt from bcrypt hash (simplified)
+  function extractBcryptSalt(hash: string): Uint8Array {
+    // Bcrypt hash format: $2a$[cost]$[salt][hash]
+    // Salt is typically 22 characters long (base64 encoded)
+    const parts = hash.split('$');
+    if (parts.length >= 3) {
+      const saltBase64 = parts[3].substring(0, 22); // Extract the salt part
+      // Convert base64 salt to Uint8Array. This is a simplified approach.
+      // A proper bcrypt library would handle this.
+      try {
+        return new Uint8Array(
+          atob(saltBase64)
+            .split('')
+            .map((char) => char.charCodeAt(0)),
+        );
+      } catch (e) {
+        console.warn('Failed to decode bcrypt salt, using dummy salt.', e);
+      }
+    }
+    return crypto.getRandomValues(new Uint8Array(16)); // Fallback to a dummy salt
+  }
+
+  async function verifyHashedPassword() {
+    error = '';
+    verificationResult = null;
+    if (!verifyPassword || !hashedPasswordToVerify) {
+      return;
+    }
+
+    try {
+      const passwordBuffer = new TextEncoder().encode(
+        verifyPassword.normalize('NFKC'),
+      );
+
+      // Autodetect algorithm and verify
+      if (
+        hashedPasswordToVerify.startsWith('$2a$') ||
+        hashedPasswordToVerify.startsWith('$2b$') ||
+        hashedPasswordToVerify.startsWith('$2y$')
+      ) {
+        // Bcrypt
+        const costFactor = parseInt(hashedPasswordToVerify.split('$')[2], 10);
+        const salt = extractBcryptSalt(hashedPasswordToVerify);
+
+        const rehashed = await bcrypt({
+          password: passwordBuffer,
+          salt,
+          costFactor,
+          outputType: 'encoded',
+        });
+        verificationResult = rehashed === hashedPasswordToVerify;
+      } else if (hashedPasswordToVerify.startsWith('$argon2')) {
+        // Argon2
+        const argon2Parts = hashedPasswordToVerify.split('$');
+        if (argon2Parts.length >= 6) {
+          const type = argon2Parts[1]
+            .substring(0, argon2Parts[1].indexOf('v='))
+            .replace('argon2', '');
+          const version = parseInt(argon2Parts[1].split('v=')[1], 10);
+          const params = argon2Parts[2].split(',');
+          let mem = 65536;
+          let iter = 2;
+          let par = 1;
+          params.forEach((p) => {
+            if (p.startsWith('m=')) mem = parseInt(p.substring(2), 10);
+            if (p.startsWith('t=')) iter = parseInt(p.substring(2), 10);
+            if (p.startsWith('p=')) par = parseInt(p.substring(2), 10);
+          });
+          const saltBase64 = argon2Parts[4];
+          const hashBase64 = argon2Parts[5];
+
+          const saltBuffer = new Uint8Array(
+            atob(saltBase64)
+              .split('')
+              .map((char) => char.charCodeAt(0)),
+          );
+          const hashLength = 32;
+
+          let rehashed;
+          if (type === 'i') {
+            rehashed = await argon2i({
+              password: passwordBuffer,
+              salt: saltBuffer,
+              parallelism: par,
+              iterations: iter,
+              memorySize: mem,
+              hashLength: hashLength,
+              outputType: 'encoded',
+            });
+          } else if (type === 'd') {
+            rehashed = await argon2d({
+              password: passwordBuffer,
+              salt: saltBuffer,
+              parallelism: par,
+              iterations: iter,
+              memorySize: mem,
+              hashLength: hashLength,
+              outputType: 'encoded',
+            });
+          } else {
+            // argon2id
+            rehashed = await argon2id({
+              password: passwordBuffer,
+              salt: saltBuffer,
+              parallelism: par,
+              iterations: iter,
+              memorySize: mem,
+              hashLength: hashLength,
+              outputType: 'encoded',
+            });
+          }
+          verificationResult = rehashed === hashedPasswordToVerify;
+        } else {
+          error = 'Invalid Argon2 hash format.';
+          verificationResult = false;
+        }
+      } else if (
+        hashedPasswordToVerify.length === 40 &&
+        /^[0-9a-fA-F]+$/.test(hashedPasswordToVerify)
+      ) {
+        // SHA-1 (hex encoded, 40 chars)
+        const rehashed = await sha1(passwordBuffer);
+        verificationResult = rehashed === hashedPasswordToVerify;
+      } else if (
+        hashedPasswordToVerify.length === 64 &&
+        /^[0-9a-fA-F]+$/.test(hashedPasswordToVerify)
+      ) {
+        // SHA-256 (hex encoded, 64 chars)
+        const rehashed = await sha256(passwordBuffer);
+        verificationResult = rehashed === hashedPasswordToVerify;
+      } else if (
+        hashedPasswordToVerify.length === 128 &&
+        /^[0-9a-fA-F]+$/.test(hashedPasswordToVerify)
+      ) {
+        // SHA-512 (hex encoded, 128 chars)
+        const rehashed = await sha512(passwordBuffer);
+        verificationResult = rehashed === hashedPasswordToVerify;
+      } else {
+        error = 'Could not autodetect hash algorithm for verification.';
+        verificationResult = false;
+      }
+    } catch (e: any) {
+      console.error('Verification error:', e);
+      error = e.message || 'An unknown error occurred during verification.';
+      verificationResult = false;
+    }
+  }
+
   // Reactive statement to re-hash when inputs change
   $: password,
     selectedAlgorithm,
@@ -374,6 +525,9 @@
     xxhash128SeedHigh,
     hashPassword();
 
+  // Reactive statement for verification
+  $: verifyPassword, hashedPasswordToVerify, verifyHashedPassword();
+
   onMount(() => {
     hashPassword();
   });
@@ -394,7 +548,7 @@
   <div class="space-y-4">
     <div>
       <label for="password" class="block text-sm font-medium text-gray-700"
-        >PASSWORD</label
+        >PASSWORD TO HASH</label
       >
       <input
         type="text"
@@ -912,6 +1066,45 @@
             />
           </svg>
         </button>
+      {/if}
+    </div>
+
+    <div class="mt-6 pt-6 border-t border-gray-200">
+      <h3 class="text-xl font-bold mb-4 text-center">Verify Password</h3>
+      <div>
+        <label
+          for="verifyPassword"
+          class="block text-sm font-medium text-gray-700"
+          >PASSWORD TO VERIFY</label
+        >
+        <input
+          type="text"
+          id="verifyPassword"
+          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+          bind:value={verifyPassword}
+        />
+      </div>
+      <div class="mt-4">
+        <label
+          for="hashedPasswordToVerify"
+          class="block text-sm font-medium text-gray-700"
+          >HASH TO VERIFY AGAINST</label
+        >
+        <input
+          type="text"
+          id="hashedPasswordToVerify"
+          class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+          bind:value={hashedPasswordToVerify}
+        />
+      </div>
+      {#if verificationResult !== null}
+        <div class="mt-4 text-center text-lg font-semibold">
+          {#if verificationResult}
+            <span class="text-green-600">Verification Successful!</span>
+          {:else}
+            <span class="text-red-600">Verification Failed.</span>
+          {/if}
+        </div>
       {/if}
     </div>
   </div>
