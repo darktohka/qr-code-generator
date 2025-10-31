@@ -4,8 +4,9 @@
   import QrCodeDisplay from './lib/QrCodeDisplay.svelte';
   import QrCodeExportButtons from './lib/QrCodeExportButtons.svelte';
   import TotpGenerator from './lib/TotpGenerator.svelte';
+  import PasswordHasher from './lib/PasswordHasher.svelte';
 
-  let currentComponent: 'qr' | 'totp' = 'qr'; // State to manage which component is active
+  let currentComponent: 'qr' | 'totp' | 'hasher' = 'qr'; // State to manage which component is active
 
   let text: string;
   let errorCorrectionLevel: 'L' | 'M' | 'Q' | 'H';
@@ -46,6 +47,15 @@
       on:click={() => (currentComponent = 'totp')}
     >
       TOTP Generator
+    </button>
+    <button
+      class="px-6 py-3 rounded-lg shadow-md transition-all duration-200 ease-in-out
+             {currentComponent === 'hasher'
+        ? 'bg-blue-600 text-white'
+        : 'bg-white text-gray-800 hover:bg-gray-200'}"
+      on:click={() => (currentComponent = 'hasher')}
+    >
+      Password Hasher
     </button>
   </div>
 
@@ -112,5 +122,7 @@
     </QrCodeGenerator>
   {:else if currentComponent === 'totp'}
     <TotpGenerator />
+  {:else if currentComponent === 'hasher'}
+    <PasswordHasher />
   {/if}
 </div>
